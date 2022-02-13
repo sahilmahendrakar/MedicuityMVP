@@ -1,5 +1,11 @@
+import 'dart:convert';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/http.dart';
+import 'package:medicuity_mvp/context_card.dart';
+import 'package:medicuity_mvp/term.dart';
 
 void main() {
   runApp(MyApp());
@@ -49,6 +55,10 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  TextEditingController inputController = TextEditingController();
+  String inputText = "";
+
+  TextStyle defaultStyle = TextStyle(fontSize: 20.0);
 
   void _incrementCounter() {
     setState(() {
@@ -61,11 +71,20 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  Widget analyzedText = Container();
+  Widget card = Container();
+
+  Term testTerm = Term(
+      name: "Test Name",
+      conceptId: "C1",
+      start: 0,
+      end: 1,
+      types: ["T01"],
+      aliases: ["alias1", "alias 2", "alias 3"],
+      definition: "Sample definition");
+
   @override
   Widget build(BuildContext context) {
-    http
-        .read(Uri.parse("http://127.0.0.1:5000/"))
-        .then((value) => print(value));
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
@@ -78,7 +97,7 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
+      body: SingleChildScrollView(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
         child: Column(
@@ -101,37 +120,149 @@ class _MyHomePageState extends State<MyHomePage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(32, 32, 64, 10),
               child: TextField(
+                controller: inputController,
                 keyboardType: TextInputType.multiline,
                 maxLines: 5,
                 decoration: InputDecoration(
-                      hintText: 'Enter text here',
-                      hintStyle: TextStyle(
-                        color: Colors.grey
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20.0)),
-                      ),
-                    ),
+                  hintText: 'Enter text here',
+                  hintStyle: TextStyle(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(20.0)),
+                  ),
+                ),
               ),
             ),
-            TextButton(onPressed: (){}, child: 
-              Text("Analyze")
-            ),
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
+            TextButton(
+                onPressed: () {
+                  //http.get(Uri.parse('http://127.0.0.1:5000/context')).then((value) => print(value.body));
+                  // http.post(Uri.parse('http://127.0.0.1:5000/context'),
+                  //     headers: {
+                  //       "Access-Control-Allow-Origin": "*",
+                  //       "Content-Type": "application/json",
+                  //       },
+                  //     body: jsonEncode(<String, String>{
+                  //       'text': inputController.text,
+                  //     })).then((value) => print(value.body));
+                  setState(() {
+                    inputText = inputController.text;
+                    analyzedText = Center(
+                      child: getAnalyzedText(inputText),
+                    );
+                  });
+                  print(inputText);
+                },
+                child: Text("Analyze")),
+            analyzedText,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(32.0, 0.0, 32.0, 0.0),
+              child: card,
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+
+  FutureBuilder<Response> getAnalyzedText(String input) {
+    return FutureBuilder<Response>(
+      future: http.post(Uri.parse('http://127.0.0.1:5000/context'),
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Content-Type": "application/json",
+          },
+          body: jsonEncode(<String, String>{
+            'text': input,
+          })), // a previously-obtained Future<String> or null
+      builder: (BuildContext context, AsyncSnapshot<Response> snapshot) {
+        List<Widget> children;
+        if (snapshot.hasData) {
+          List rawTerms = jsonDecode(snapshot.data!.body)['results'];
+          print(rawTerms);
+          List<Term> terms = (rawTerms.map((e) => Term.fromJson(e))).toList();
+          terms.sort((a, b) => a.start.compareTo(b.start));
+          print(terms[0].name);
+          List<TextSpan> textChildren = [];
+          List originalChars = input.split('');
+          textChildren.add(TextSpan(
+              text: originalChars.sublist(0, terms[0].start).join(),
+              style: TextStyle(fontSize: 20.0)));
+          for (int i = 0; i < terms.length; i++) {
+            if (i > 0) {
+              textChildren.add(TextSpan(
+                  text: originalChars
+                      .sublist(terms[i - 1].end, terms[i].start)
+                      .join(),
+                  style: TextStyle(fontSize: 20.0)));
+            }
+            textChildren.add(TextSpan(
+                text:
+                    originalChars.sublist(terms[i].start, terms[i].end).join(),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0),
+                recognizer: new TapGestureRecognizer()
+                  ..onTap = () {
+                    setState(() {
+                      card = ContextCard(term: terms[i]);
+                    });
+                  }));
+          }
+          textChildren.add(TextSpan(
+              text: originalChars.sublist(terms[terms.length - 1].end).join(),
+              style: TextStyle(fontSize: 20.0)));
+          children = <Widget>[
+            Padding(
+              padding: EdgeInsets.fromLTRB(32.0, 10.0, 32.0, 10.0),
+              child: Card(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20.0)),
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: RichText(
+                    text: TextSpan(
+                      children: textChildren,
+                    ),
+                  ),
+                ),
+              ),
+            )
+          ];
+        } else if (snapshot.hasError) {
+          children = <Widget>[
+            const Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 60,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Error: ${snapshot.error}'),
+            )
+          ];
+        } else {
+          children = const <Widget>[
+            SizedBox(
+              width: 60,
+              height: 60,
+              child: CircularProgressIndicator(),
+            ),
+            Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: Text('Awaiting result...'),
+            )
+          ];
+        }
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: children,
+          ),
+        );
+      },
     );
   }
 }
+
+
+
+//TODO: Highlight text in text span
+//Create Context card
+//Show context card when word is clicked
