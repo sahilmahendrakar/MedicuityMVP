@@ -1,3 +1,5 @@
+import 'package:medicuity_mvp/models/tui.dart';
+
 class Term {
   final String name;
   final List<String> aliases;
@@ -6,18 +8,30 @@ class Term {
   final int end;
   final List<String> types;
   final String definition;
+  late Tui tui;
 
-  const Term({
+  Term({
     required this.name,
     required this.conceptId,
     required this.start,
     required this.end,
     required this.types,
     required this.aliases,
-    required this.definition
-  });
+    required this.definition,
+  }) {
+    print(name);
+    Map<String, String> raw_tui_obj = tui_map[types[0]];
+    print(raw_tui_obj);
+    this.tui = Tui(
+        code: raw_tui_obj["code"]!,
+        group: raw_tui_obj["group"]!,
+        tui: raw_tui_obj["tui"]!,
+        desc: raw_tui_obj["desc"]!,
+        color: tuiCode_to_color[raw_tui_obj["code"]]!);
+  }
 
   factory Term.fromJson(Map<String, dynamic> json) {
+    print(json);
     return Term(
         name: json['name'],
         conceptId: json['concept_id'],

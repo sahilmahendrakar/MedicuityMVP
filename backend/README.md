@@ -1,1 +1,3 @@
 # MedicuityMVP
+
+`flask run`

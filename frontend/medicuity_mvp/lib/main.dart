@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
 import 'package:medicuity_mvp/context_card.dart';
-import 'package:medicuity_mvp/term.dart';
+import 'package:medicuity_mvp/models/term.dart';
+import 'package:medicuity_mvp/models/tui.dart';
 
 void main() {
   runApp(MyApp());
@@ -16,7 +17,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Medicuity Demo',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -73,15 +74,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget analyzedText = Container();
   Widget card = Container();
-
-  Term testTerm = Term(
-      name: "Test Name",
-      conceptId: "C1",
-      start: 0,
-      end: 1,
-      types: ["T01"],
-      aliases: ["alias1", "alias 2", "alias 3"],
-      definition: "Sample definition");
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +169,7 @@ class _MyHomePageState extends State<MyHomePage> {
         List<Widget> children;
         if (snapshot.hasData) {
           List rawTerms = jsonDecode(snapshot.data!.body)['results'];
-          print(rawTerms);
+          // print(rawTerms);
           List<Term> terms = (rawTerms.map((e) => Term.fromJson(e))).toList();
           terms.sort((a, b) => a.start.compareTo(b.start));
           print(terms[0].name);
@@ -197,7 +189,11 @@ class _MyHomePageState extends State<MyHomePage> {
             textChildren.add(TextSpan(
                 text:
                     originalChars.sublist(terms[i].start, terms[i].end).join(),
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20.0,
+                    color:
+                        tuiCode_to_color[tui_map[terms[i].types[0]]["code"]]),
                 recognizer: new TapGestureRecognizer()
                   ..onTap = () {
                     setState(() {

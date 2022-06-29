@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:medicuity_mvp/term.dart';
+import 'models/term.dart';
 
 class ContextCard extends StatelessWidget {
   ContextCard({Key? key, required this.term}) : super(key: key);
